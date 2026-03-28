@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>Ric Pac Soe</title>
+<style>
+html,body{margin:0;height:100%;font-family:sans-serif;background:#000;color:#fff}
+#titleScreen,#game{position:absolute;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center}
+#game{display:none}
+button{margin:6px;padding:10px 18px;border:none;border-radius:10px;background:linear-gradient(45deg,#ff00cc,#3333ff);color:#fff;cursor:pointer}
+.dark{background:#444}
+button.active{background:linear-gradient(45deg,#00ffcc,#ffcc00);box-shadow:0 0 10px #fff}
+.board{display:grid;grid-template-columns:repeat(3,100px);gap:10px;margin-top:20px}
+.cell{width:100px;height:100px;border:3px solid #30e3ca;display:flex;align-items:center;justify-content:center;font-size:2rem;border-radius:10px}
+.cell.X{background:#ffd60a}.cell.O{background:#006400}
+#overlay{position:absolute;width:100%;height:100%;display:none;align-items:center;justify-content:center;flex-direction:column;font-size:3rem}
+</style>
+</head>
+<body>
+
+<div id="titleScreen">
+<h1>Ric Pac Soe</h1>
+<select id="winMode"><option value="three">三目</option><option value="war">九目</option></select>
+<select id="opponent"><option value="ai" selected>AI</option><option value="pvp">人間</option></select>
+<button onclick="startGame('X')">先手でSTART</button>
+<button class="dark" onclick="startGame('O')">後手でSTART</button>
+</div>
+
+<div id="game">
+<div>
+<button id="rockBtn" onclick="setHand('rock')">🪨</button>
+<button id="scissorsBtn" onclick="setHand('scissors')">✂️</button>
+<button id="paperBtn" onclick="setHand('paper')">📜</button>
+<button id="attackBtn" onclick="setMode('attack')">攻撃</button>
+<button onclick="passTurn()">パス</button>
+</div>
+<div class="board" id="board"></div>
+<div>
+<button class="dark" onclick="giveUp()">降参</button>
+<button class="dark" onclick="back()">タイトルへ戻る</button>
+</div>
+<div id="overlay"></div>
+</div>
+
+<script>
+let board,current,mode='place',hand='rock',opponent,selected,gameOver=false,bonus=false;
+let lastStarter='X';
+
+function startGame(st){
+ lastStarter=st;
+ board=Array(9).fill(null);
+ current=st; opponent=document.getElementById('opponent').value;
+ gameOver=false; selected=null; bonus=false;
+ document.getElementById('titleScreen').style.display='none';
+ document.getElementById('game').style.display='flex';
+ document.getElementById('overlay').style.display='none';
+ render();
+ if(opponent==='ai'&&current==='O') aiMove();
+}
+
+function back(){
+ document.getElementById('game').style.display='none';
+ document.getElementById('titleScreen').style.display='flex';
+}
+
+function render(){
+ const boardDiv=document.getElementById('board');
+ boardDiv.innerHTML='';
+ board.forEach((c,i)=>{
+  let d=document.createElement('div');
+  d.className='cell';
+  if(c){d.classList.add(c.p);d.textContent=emoji(c.h)}
+  d.onclick=()=>click(i);
+  boardDiv.appendChild(d);
+ });
+}
+
+function emoji(h){return h==='rock'?'🪨':h==='scissors'?'✂️':'📜'}
+
+function setHand(h){hand=h;mode='place';updateBtn()}
+function setMode(m){mode=m;updateBtn()}
+
+function updateBtn(){
+ ['rock','scissors','paper'].forEach(x=>document.getElementById(x+'Btn').classList.remove('active'));
+ document.getElementById('attackBtn').classList.remove('active');
+ if(mode==='attack') document.getElementById('attackBtn').classList.add('active');
+ else document.getElementById(hand+'Btn').classList.add('active');
+}
+
+function click(i){
+ if(gameOver)return;
+
+ if(mode==='place'){
+  if(board[i])return;
+  board[i]={p:current,h:hand};
+
+  // あいこ後のボーナス設置
+  if(bonus){
+    bonus=false;
+    next(); // ←ここ重要：ボーナス後はターン交代
+    return;
+  }
+
+  next();
+
+ }else{
+
+  if(selected==null){
+    if(board[i]?.p===current) selected=i;
+  }else{
+
+    if(adj(selected,i)&&board[i]&&board[i].p!==current){
+
+      let a=board[selected].h;
+      let b=board[i].h;
+
+      if(a===b){
+        // あいこ処理
+        board[selected]=null;
+        board[i]=null;
+
+        bonus=true;        // 次に設置ボーナス
+        mode='place';
+        selected=null;
+
+        render();
+        return; // ←ここ重要：ターン交代しない
+      }
+
+      else if(win(a,b)){
+        board[i]={p:current,h:a};
+      }
+
+      else{
+        board[selected]=null;
+      }
+
+      selected=null;
+      next();
+
+    }else{
+      selected=null;
+    }
+  }
+ }
+
+ render();
+}
+
+function passTurn(){ if(gameOver)return; next(); }
+function giveUp(){ end(current==='X'?'O':'X'); }
+
+function adj(a,b){let ax=a%3,ay=(a/3|0),bx=b%3,by=(b/3|0);return Math.abs(ax-bx)<=1&&Math.abs(ay-by)<=1&&a!==b}
+function win(a,b){return a==='rock'&&b==='scissors'||a==='scissors'&&b==='paper'||a==='paper'&&b==='rock'}
+
+function next(){ if(check())return; current=current==='X'?'O':'X'; render(); if(opponent==='ai'&&current==='O')setTimeout(aiMove,100)}
+
+function check(){
+ let p=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+ if(document.getElementById('winMode').value==='three'){
+  for(let [a,b,c] of p){ if(board[a]&&board[a].p===board[b]?.p&&board[a].p===board[c]?.p){ end(board[a].p); return true } }
+ }
+ if(document.getElementById('winMode').value==='war'){
+  if(board[0]&&board.every(v=>v&&v.p===board[0].p)){ end(board[0].p); return true }
+ }
+ return false;
+}
+
+function end(p){
+ gameOver=true;
+ const overlay=document.getElementById('overlay');
+ overlay.style.display='flex';
+ overlay.innerHTML=`<div>${p==='X'?'WIN':'LOSE'}</div>
+ <button onclick="startGame('${lastStarter}')">もう一度対戦する</button>
+ <button onclick="back()">タイトルへ戻る</button>`;
+ overlay.style.background=p==='X'?'rgba(255,214,10,0.8)':'rgba(0,100,0,0.8)';
+}
+
+/* AIは前回のまま（省略せず維持） */
+function aiMove(){
+ let best=-Infinity,move;
+ let actions=getActions('O');
+ for(let act of actions){
+  let b=simulate(board,act,'O');
+  let score=minimax(b,3,false);
+  if(score>best){best=score;move=act}
+ }
+ if(move) apply(move);
+}
+
+function minimax(b,depth,isMax){
+ if(depth===0) return evaluate(b);
+ let player=isMax?'O':'X';
+ let acts=getActions(player,b);
+ if(isMax){
+  let best=-Infinity;
+  for(let a of acts){ best=Math.max(best,minimax(simulate(b,a,player),depth-1,false)); }
+  return best;
+ }else{
+  let best=Infinity;
+  for(let a of acts){ best=Math.min(best,minimax(simulate(b,a,player),depth-1,true)); }
+  return best;
+ }
+}
+
+function evaluate(b){
+ let score=0,count={rock:0,scissors:0,paper:0};
+ b.forEach(c=>{if(!c)return; if(c.p==='O')score+=15;else score-=15; count[c.h]++});
+ let values=Object.values(count);
+ score -= (Math.max(...values)-Math.min(...values));
+ score += countAttacks(b,'O')*3;
+ score -= countAttacks(b,'X')*3;
+ return score;
+}
+
+function countAttacks(b,p){let c=0;b.forEach((cell,i)=>{if(cell?.p===p){b.forEach((t,j)=>{if(adj(i,j)&&t&&t.p!==p&&win(cell.h,t.h))c++})}});return c}
+
+function getLeastUsedHand(b){let count={rock:0,scissors:0,paper:0};b.forEach(c=>{if(c)count[c.h]++});return Object.entries(count).sort((a,b)=>a[1]-b[1])[0][0]}
+
+function getActions(p,b=board){let acts=[];b.forEach((c,i)=>{if(!c)acts.push({type:'place',i});if(c?.p===p){b.forEach((t,j)=>{if(adj(i,j)&&t&&t.p!==p)acts.push({type:'attack',from:i,to:j})})}});return acts}
+
+function simulate(b,a,p){let nb=b.map(v=>v?{...v}:null);if(a.type==='place'){let h=getLeastUsedHand(nb);nb[a.i]={p,h}}else{let A=nb[a.from],B=nb[a.to];if(A.h===B.h){nb[a.from]=null;nb[a.to]=null}else if(win(A.h,B.h))nb[a.to]={p,h:A.h};else nb[a.from]=null}return nb}
+
+function apply(a){if(a.type==='place'){let h=getLeastUsedHand(board);board[a.i]={p:'O',h}}else{selected=a.from;mode='attack';click(a.to);return}next()}
+
+</script>
+</body>
+</html>
