@@ -3,35 +3,60 @@
 <head>
 <meta charset="UTF-8">
 <title>Ric Pac Soe</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
 <style>
-html,body{margin:0;height:100%;font-family:sans-serif;background:#000;color:#fff}
+html,body{margin:0;height:100%;font-family:'Orbitron',sans-serif;background:#000;color:#fff}
 #titleScreen,#game{position:absolute;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center}
 #game{display:none}
-button{margin:6px;padding:10px 18px;border:none;border-radius:10px;background:linear-gradient(45deg,#ff00cc,#3333ff);color:#fff;cursor:pointer}
+h1{font-size:64px;margin-bottom:40px;letter-spacing:4px}
+.control-group{margin:10px 0;display:flex;align-items:center;gap:10px}
+label{font-size:14px;opacity:0.7}
+select{padding:8px 12px;border-radius:8px;border:none;background:#111;color:#fff}
+button{margin:6px;padding:12px 20px;border:none;border-radius:10px;background:linear-gradient(45deg,#ff00cc,#3333ff);color:#fff;cursor:pointer}
+button.active{background:linear-gradient(45deg,#00ffcc,#ffcc00)}
 .dark{background:#444}
-button.active{background:linear-gradient(45deg,#00ffcc,#ffcc00);box-shadow:0 0 10px #fff}
+.start-buttons{margin-top:30px}
 .board{display:grid;grid-template-columns:repeat(3,100px);gap:10px;margin-top:20px}
 .cell{width:100px;height:100px;border:3px solid #30e3ca;display:flex;align-items:center;justify-content:center;font-size:2rem;border-radius:10px}
 .cell.X{background:#ffd60a}.cell.O{background:#006400}
-#overlay{position:absolute;width:100%;height:100%;display:none;align-items:center;justify-content:center;flex-direction:column;font-size:3rem}
+#overlay{position:absolute;width:100%;height:100%;display:none;align-items:center;justify-content:center;flex-direction:column;font-size:48px;font-family:'Orbitron'}
+#infoBox{position:absolute;bottom:10px;width:80%;max-width:600px;font-size:12px;opacity:0.8}
 </style>
 </head>
 <body>
 
 <div id="titleScreen">
 <h1>Ric Pac Soe</h1>
-<select id="winMode"><option value="three">三目</option><option value="war">九目</option></select>
-<select id="opponent"><option value="ai" selected>AI</option><option value="pvp">人間</option></select>
+<div class="control-group"><label>ゲームモード</label><select id="winMode"><option value="three">三目</option><option value="war">九目</option></select></div>
+<div class="control-group"><label>対戦相手</label><select id="opponent"><option value="ai" selected>AI</option><option value="pvp">人間</option></select></div>
+<div class="start-buttons">
 <button onclick="startGame('X')">先手でSTART</button>
 <button class="dark" onclick="startGame('O')">後手でSTART</button>
 </div>
 
+<div id="infoBox">
+
+「Ric Pac Soe」は「三目並べ（tic-tac-toe）」と「じゃんけん（rock-paper-scissors）」を組み合わせたオリジナルゲーム。〇×の代わりに設置するのは、🪨✂️📜。ターンが来たら、新たにマークを設置するか、隣接するマークに攻撃して、自分に塗り替えてください。あいこの場合は対消滅し、新たなマークを設置するボーナスが得られます。<br>
+<br>
+# ゲームモード<br>
+　- 「三目」　縦・横・斜め・いずれか1ラインを塗ったプレイヤーの勝ちです<br>
+　- 「九目」　9マスすべてを塗ったプレイヤーの勝ちです<br>
+<br>
+# 対戦相手<br>
+　- 「AI」　ルールベースの初級AIとの対戦を楽しめます<br>
+　- 「人間」　現在は練習用（一人二役用）です<br>
+<br>
+developed by @naoyasnow
+
+</div>
+</div>
+
 <div id="game">
 <div>
-<button id="rockBtn" onclick="setHand('rock')">🪨</button>
-<button id="scissorsBtn" onclick="setHand('scissors')">✂️</button>
-<button id="paperBtn" onclick="setHand('paper')">📜</button>
-<button id="attackBtn" onclick="setMode('attack')">攻撃</button>
+<button id="rock" onclick="setHand('rock')">🪨</button>
+<button id="scissors" onclick="setHand('scissors')">✂️</button>
+<button id="paper" onclick="setHand('paper')">📜</button>
+<button id="attack" onclick="setMode('attack')">攻撃</button>
 <button onclick="passTurn()">パス</button>
 </div>
 <div class="board" id="board"></div>
@@ -43,142 +68,130 @@ button.active{background:linear-gradient(45deg,#00ffcc,#ffcc00);box-shadow:0 0 1
 </div>
 
 <script>
-let board,current,mode='place',hand='rock',opponent,selected,gameOver=false,bonus=false;
-let lastStarter='X';
+let board,current,mode='place',hand='rock',opponent,selected,gameOver=false,bonus=false,bonusOwner=null,lastStarter='X';
 
 function startGame(st){
  lastStarter=st;
  board=Array(9).fill(null);
- current=st; opponent=document.getElementById('opponent').value;
- gameOver=false; selected=null; bonus=false;
+ current=st;
+ opponent=document.getElementById('opponent').value;
+ gameOver=false;bonus=false;bonusOwner=null;
  document.getElementById('titleScreen').style.display='none';
  document.getElementById('game').style.display='flex';
  document.getElementById('overlay').style.display='none';
  render();
- if(opponent==='ai'&&current==='O') aiMove();
+ if(opponent==='ai' && current==='O') setTimeout(aiMove,150);
 }
 
-function back(){
- document.getElementById('game').style.display='none';
- document.getElementById('titleScreen').style.display='flex';
+function setActive(id){
+ ['rock','scissors','paper','attack'].forEach(b=>document.getElementById(b).classList.remove('active'));
+ if(id) document.getElementById(id).classList.add('active');
 }
+
+function setHand(h){hand=h;mode='place';setActive(h)}
+function setMode(m){mode=m;setActive('attack')}
 
 function render(){
- const boardDiv=document.getElementById('board');
- boardDiv.innerHTML='';
+ const b=document.getElementById('board');b.innerHTML='';
  board.forEach((c,i)=>{
-  let d=document.createElement('div');
-  d.className='cell';
+  let d=document.createElement('div');d.className='cell';
   if(c){d.classList.add(c.p);d.textContent=emoji(c.h)}
   d.onclick=()=>click(i);
-  boardDiv.appendChild(d);
+  b.appendChild(d);
  });
 }
 
 function emoji(h){return h==='rock'?'🪨':h==='scissors'?'✂️':'📜'}
 
-function setHand(h){hand=h;mode='place';updateBtn()}
-function setMode(m){mode=m;updateBtn()}
-
-function updateBtn(){
- ['rock','scissors','paper'].forEach(x=>document.getElementById(x+'Btn').classList.remove('active'));
- document.getElementById('attackBtn').classList.remove('active');
- if(mode==='attack') document.getElementById('attackBtn').classList.add('active');
- else document.getElementById(hand+'Btn').classList.add('active');
-}
-
 function click(i){
  if(gameOver)return;
+
+ // ★ボーナス中は所有者のみ操作
+ if(bonus && current!==bonusOwner) return;
 
  if(mode==='place'){
   if(board[i])return;
   board[i]={p:current,h:hand};
 
-  // あいこ後のボーナス設置
   if(bonus){
     bonus=false;
-    next(); // ←ここ重要：ボーナス後はターン交代
+    bonusOwner=null;
+    next();
     return;
   }
 
   next();
 
  }else{
+  if(selected==null){if(board[i]?.p===current)selected=i}
+  else{
+   if(adj(selected,i)&&board[i]&&board[i].p!==current){
+    let a=board[selected].h,b=board[i].h;
 
-  if(selected==null){
-    if(board[i]?.p===current) selected=i;
-  }else{
-
-    if(adj(selected,i)&&board[i]&&board[i].p!==current){
-
-      let a=board[selected].h;
-      let b=board[i].h;
-
-      if(a===b){
-        // あいこ処理
-        board[selected]=null;
-        board[i]=null;
-
-        bonus=true;        // 次に設置ボーナス
-        mode='place';
-        selected=null;
-
-        render();
-        return; // ←ここ重要：ターン交代しない
-      }
-
-      else if(win(a,b)){
-        board[i]={p:current,h:a};
-      }
-
-      else{
-        board[selected]=null;
-      }
-
-      selected=null;
-      next();
-
-    }else{
-      selected=null;
+    if(a===b){
+      board[selected]=null;board[i]=null;
+      bonus=true;
+      bonusOwner=current; // ★誰のボーナスか固定
+      mode='place';selected=null;
+      render();return;
     }
+
+    else if(win(a,b)) board[i]={p:current,h:a};
+    else board[selected]=null;
+
+    selected=null;next();
+   }else selected=null;
   }
  }
-
  render();
 }
 
-function passTurn(){ if(gameOver)return; next(); }
-function giveUp(){ end(current==='X'?'O':'X'); }
+function passTurn(){next()}
+function giveUp(){end(current==='X'?'O':'X')}
 
 function adj(a,b){let ax=a%3,ay=(a/3|0),bx=b%3,by=(b/3|0);return Math.abs(ax-bx)<=1&&Math.abs(ay-by)<=1&&a!==b}
 function win(a,b){return a==='rock'&&b==='scissors'||a==='scissors'&&b==='paper'||a==='paper'&&b==='rock'}
 
-function next(){ if(check())return; current=current==='X'?'O':'X'; render(); if(opponent==='ai'&&current==='O')setTimeout(aiMove,100)}
+function next(){
+ if(check())return;
+ current=current==='X'?'O':'X';
+ render();
+ if(opponent==='ai' && current==='O' && !gameOver) setTimeout(aiMove,120);
+}
 
 function check(){
- let p=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
- if(document.getElementById('winMode').value==='three'){
-  for(let [a,b,c] of p){ if(board[a]&&board[a].p===board[b]?.p&&board[a].p===board[c]?.p){ end(board[a].p); return true } }
+ let mode=document.getElementById('winMode').value;
+
+ if(mode==='three'){
+  let p=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+  for(let [a,b,c] of p){
+   if(board[a]&&board[a].p===board[b]?.p&&board[a].p===board[c]?.p){end(board[a].p);return true}
+  }
  }
- if(document.getElementById('winMode').value==='war'){
-  if(board[0]&&board.every(v=>v&&v.p===board[0].p)){ end(board[0].p); return true }
+
+ if(mode==='war'){
+  if(board.every(cell=>cell!==null)){
+    let first=board[0].p;
+    if(board.every(cell=>cell.p===first)){end(first);return true}
+  }
  }
  return false;
 }
 
 function end(p){
  gameOver=true;
- const overlay=document.getElementById('overlay');
- overlay.style.display='flex';
- overlay.innerHTML=`<div>${p==='X'?'WIN':'LOSE'}</div>
- <button onclick="startGame('${lastStarter}')">もう一度対戦する</button>
+ let o=document.getElementById('overlay');
+ o.style.display='flex';
+ o.style.background = p==='X' ? '#ffd60a' : '#003300';
+ o.innerHTML=`<div>${p==='X'?'WIN':'LOSE'}</div>
+ <button onclick="startGame('${lastStarter}')">もう一度対戦</button>
  <button onclick="back()">タイトルへ戻る</button>`;
- overlay.style.background=p==='X'?'rgba(255,214,10,0.8)':'rgba(0,100,0,0.8)';
 }
 
-/* AIは前回のまま（省略せず維持） */
+/* ===== AI ===== */
 function aiMove(){
- let best=-Infinity,move;
+ if(gameOver)return;
+ let best=-Infinity,move=null;
  let actions=getActions('O');
  for(let act of actions){
   let b=simulate(board,act,'O');
@@ -188,41 +201,79 @@ function aiMove(){
  if(move) apply(move);
 }
 
-function minimax(b,depth,isMax){
- if(depth===0) return evaluate(b);
+function minimax(b,d,isMax){
+ if(d===0)return evaluate(b);
  let player=isMax?'O':'X';
  let acts=getActions(player,b);
- if(isMax){
-  let best=-Infinity;
-  for(let a of acts){ best=Math.max(best,minimax(simulate(b,a,player),depth-1,false)); }
-  return best;
- }else{
-  let best=Infinity;
-  for(let a of acts){ best=Math.min(best,minimax(simulate(b,a,player),depth-1,true)); }
-  return best;
- }
+ return isMax?
+  Math.max(...acts.map(a=>minimax(simulate(b,a,player),d-1,false))):
+  Math.min(...acts.map(a=>minimax(simulate(b,a,player),d-1,true)));
 }
 
 function evaluate(b){
- let score=0,count={rock:0,scissors:0,paper:0};
- b.forEach(c=>{if(!c)return; if(c.p==='O')score+=15;else score-=15; count[c.h]++});
- let values=Object.values(count);
- score -= (Math.max(...values)-Math.min(...values));
- score += countAttacks(b,'O')*3;
- score -= countAttacks(b,'X')*3;
- return score;
+ let s=0,count={rock:0,scissors:0,paper:0};
+ b.forEach(c=>{if(!c)return;if(c.p==='O')s+=15;else s-=15;count[c.h]++});
+ let v=Object.values(count);
+ s-=(Math.max(...v)-Math.min(...v));
+ s+=countAttacks(b,'O')*3;
+ s-=countAttacks(b,'X')*3;
+ return s;
 }
 
-function countAttacks(b,p){let c=0;b.forEach((cell,i)=>{if(cell?.p===p){b.forEach((t,j)=>{if(adj(i,j)&&t&&t.p!==p&&win(cell.h,t.h))c++})}});return c}
+function countAttacks(b,p){
+ let c=0;
+ b.forEach((cell,i)=>{
+  if(cell?.p===p){
+    b.forEach((t,j)=>{
+      if(adj(i,j)&&t&&t.p!==p&&win(cell.h,t.h))c++;
+    })
+  }
+ });
+ return c;
+}
 
-function getLeastUsedHand(b){let count={rock:0,scissors:0,paper:0};b.forEach(c=>{if(c)count[c.h]++});return Object.entries(count).sort((a,b)=>a[1]-b[1])[0][0]}
+function getLeastUsedHand(b){
+ let count={rock:0,scissors:0,paper:0};
+ b.forEach(c=>{if(c)count[c.h]++});
+ return Object.entries(count).sort((a,b)=>a[1]-b[1])[0][0];
+}
 
-function getActions(p,b=board){let acts=[];b.forEach((c,i)=>{if(!c)acts.push({type:'place',i});if(c?.p===p){b.forEach((t,j)=>{if(adj(i,j)&&t&&t.p!==p)acts.push({type:'attack',from:i,to:j})})}});return acts}
+function getActions(p,b=board){
+ let acts=[];
+ b.forEach((c,i)=>{
+  if(!c)acts.push({type:'place',i});
+  if(c?.p===p){
+    b.forEach((t,j)=>{
+      if(adj(i,j)&&t&&t.p!==p)acts.push({type:'attack',from:i,to:j});
+    })
+  }
+ });
+ return acts;
+}
 
-function simulate(b,a,p){let nb=b.map(v=>v?{...v}:null);if(a.type==='place'){let h=getLeastUsedHand(nb);nb[a.i]={p,h}}else{let A=nb[a.from],B=nb[a.to];if(A.h===B.h){nb[a.from]=null;nb[a.to]=null}else if(win(A.h,B.h))nb[a.to]={p,h:A.h};else nb[a.from]=null}return nb}
+function simulate(b,a,p){
+ let nb=b.map(v=>v?{...v}:null);
+ if(a.type==='place'){
+  let h=getLeastUsedHand(nb);
+  nb[a.i]={p,h};
+ }else{
+  let A=nb[a.from],B=nb[a.to];
+  if(A.h===B.h){nb[a.from]=null;nb[a.to]=null}
+  else if(win(A.h,B.h))nb[a.to]={p,h:A.h};
+  else nb[a.from]=null;
+ }
+ return nb;
+}
 
-function apply(a){if(a.type==='place'){let h=getLeastUsedHand(board);board[a.i]={p:'O',h}}else{selected=a.from;mode='attack';click(a.to);return}next()}
-
+function apply(a){
+ if(a.type==='place'){
+  let h=getLeastUsedHand(board);
+  board[a.i]={p:'O',h};
+ }else{
+  selected=a.from;mode='attack';click(a.to);return;
+ }
+ next();
+}
 </script>
 </body>
 </html>
