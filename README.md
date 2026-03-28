@@ -6,6 +6,8 @@ https://naoyasnow.github.io/ric-pac-soe/
 
 developed by @naoyasnow Last Updated 2026/3/28
 
+
+
 ## ゲームモード
   - 「三目並べ（先手一列）」　縦・横・斜め・いずれか1ラインを塗ったプレイヤーの勝ちです
   - 「九目並べ（一色制圧）」　9マスすべてを塗ったプレイヤーの勝ちです
