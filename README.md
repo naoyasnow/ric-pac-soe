@@ -12,5 +12,10 @@ https://naoyasnow.github.io/ric-pac-soe/
   - 「AI」　ルールベースの初級AIとの対戦を楽しめます
   - 「人間」　現在は練習用（一人二役用）です
 
+## やれたらやる
+  - かしこいAI
+  - 時間制限や勝利までの手数をスコア実装
+  - 待ち合わせ方式のオンライン対戦
+
 developed by @naoyasnow
 Last Updated 2026/3/28
