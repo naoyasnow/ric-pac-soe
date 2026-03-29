@@ -488,39 +488,47 @@ function simulate(b,a,p){
 
 function apply(a){
   if(a.type==='place'){
-    // 通常の設置時も、AIに少しだけ知恵を授ける（数合わせの手を選ぶ）
     let h=getLeastUsedHand(board);
     board[a.i]={p:'O',h};
     next();
-  }else{
+  } else {
     selected=a.from;
     mode='attack';
+    // 1. まず攻撃（クリック）を実行
     click(a.to); 
     
-    // アイコ発生時のAIによる自動設置（evaluateによる最適化版）
-    if(bonus && bonusOwner==='O'){
-      let bestScore = -Infinity;
-      let bestTarget = null;
-      let h = getLeastUsedHand(board);
+    // 2. 殴るアニメーションが終わるまで少し待ってから、ボーナス設置の判定をする
+    // click内のsetTimeout(250ms)より少し長めに設定(300ms)するのがコツです
+    setTimeout(() => {
+      if(bonus && bonusOwner==='O'){
+        let bestScore = -Infinity;
+        let bestTarget = null;
+        let h = getLeastUsedHand(board);
 
-      board.forEach((c, i) => {
-        if(!c) {
-          board[i] = {p:'O', h: h};
-          let score = evaluate(board); 
-          board[i] = null;
-          if(score > bestScore) {
-            bestScore = score;
-            bestTarget = i;
+        board.forEach((c, i) => {
+          if(!c) {
+            board[i] = {p:'O', h: h};
+            let score = evaluate(board); 
+            board[i] = null;
+            if(score > bestScore) {
+              bestScore = score;
+              bestTarget = i;
+            }
           }
-        }
-      });
+        });
 
-      if(bestTarget !== null){
-        hand = h;
-        mode = 'place';
-        click(bestTarget); 
+        // 万が一、評価ロジックが空きマスを見逃しても、物理的な空きマスを強制確保
+        if (bestTarget === null) {
+          bestTarget = board.findIndex(cell => cell === null);
+        }
+
+        if(bestTarget !== -1 && bestTarget !== null){
+          hand = h;
+          mode = 'place';
+          click(bestTarget); 
+        }
       }
-    }
+    }, 300); // 300ミリ秒待機
   }
 }
 
