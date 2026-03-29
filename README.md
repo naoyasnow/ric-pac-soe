@@ -4,7 +4,7 @@ https://naoyasnow.github.io/ric-pac-soe/
 
 「Ric Pac Soe」は「三目並べ（tic-tac-toe）」と「じゃんけん（rock-paper-scissors）」を組み合わせたオリジナルゲーム。〇×の代わりに設置するのは、グー🪨チョキ✂️パー📜。ターンが来たら、新たにマークを設置するか、隣接するマークを攻撃して、自分の色に塗り替えろ。アイコの場合マークは対消滅し、新たなマークを設置するボーナスが得られる。生き残るには、秩序か、多様性か。支配者は、AIか、人類か。
 
-developed by @naoyasnow Last Updated 2026/3/28 v1.31
+developed by @naoyasnow Last Updated 2026/3/29 v1.31
 
 ---
 
