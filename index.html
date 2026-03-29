@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Ric Pac Soe</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
+
+
 <style>
 html,body{margin:0;height:100%;font-family:'Orbitron',sans-serif;background:#000;color:#fff;touch-action:manipulation}
 #titleScreen,#game{position:absolute;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;box-sizing:border-box}
@@ -21,6 +23,14 @@ button:active{transform:scale(0.95)}
 button.active{background:linear-gradient(45deg,#00ffcc,#ffcc00)}
 .dark{background:#444}
 
+/* 既存の .dark の下あたりに追加 */
+button:disabled {
+  background: #444 !important; /* グレーにする */
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
 .start-buttons{margin-top:20px;display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
 
 .board{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:min(90vw,360px);margin-top:16px}
@@ -36,8 +46,79 @@ button.active{background:linear-gradient(45deg,#00ffcc,#ffcc00)}
 
 #bottomActions{display:flex;gap:10px;margin-top:10px}
 #bottomActions button{flex:1}
+
+@keyframes pulse-border {
+  0% { border-color: #ff0000; box-shadow: 0 0 5px #ff0000; }
+  50% { border-color: #ffcc00; box-shadow: 0 0 20px #ffcc00; }
+  100% { border-color: #ff0000; box-shadow: 0 0 5px #ff0000; }
+}
+
+/* マス選択：背景はそのまま、枠線と光の演出のみ */
+@keyframes attack-pulse {
+  0% { border-color: #ff0000; box-shadow: 0 0 10px #ff0000; }
+  50% { border-color: #ffcc00; box-shadow: 0 0 20px #ffcc00; }
+  100% { border-color: #ff0000; box-shadow: 0 0 10px #ff0000; }
+}
+
+@keyframes attack-shake {
+  0% { transform: scale(1.05) translate(0, 0); }
+  25% { transform: scale(1.05) translate(1px, -1px); }
+  50% { transform: scale(1.05) translate(-1px, 1px); }
+  75% { transform: scale(1.05) translate(1px, 1px); }
+  100% { transform: scale(1.05) translate(0, 0); }
+}
+
+.cell.selected {
+  border: 5px solid #ff0000 !important; /* 枠線を太く強調 */
+  animation: attack-pulse 0.6s infinite, attack-shake 0.2s infinite;
+  z-index: 15;
+}
+
+/* 攻撃ボタン専用のアクティブ状態（赤・黒・黄のグラデーション） */
+button.attack-active {
+  background: linear-gradient(45deg, #ff0000, #000000, #ffcc00) !important;
+  color: #fff;
+  border: 1px solid #ffcc00;
+}
+
+/* 殴るアニメーション（ターゲットに向かって急加速し、少し弾んで戻る） */
+@keyframes attack-punch {
+  0%   { transform: scale(1.1) translate(0, 0); z-index: 20; }
+  20%  { transform: scale(1.3) translate(0, 0); z-index: 20; } /* グッと溜める */
+  50%  { transform: scale(1.5) translate(var(--dx), var(--dy)); z-index: 20; } /* 殴る！ */
+  70%  { transform: scale(1.2) translate(0, 0); z-index: 20; } /* 戻る */
+  100% { transform: scale(1.0) translate(0, 0); z-index: 1; } /* 元通り */
+}
+
+/* 殴るマスに付与するクラス */
+.cell.punching {
+  animation: attack-punch 0.3s ease-out forwards;
+  position: relative;
+  z-index: 20 !important;
+}
+
+/* 煙が広がり、フェードアウトするアニメーション */
+@keyframes smoke-fade {
+  0%   { opacity: 0; background-color: rgba(100, 100, 100, 0); }
+  20%  { opacity: 1; background-color: rgba(100, 100, 100, 0.6); } /* 煙が広がる */
+  100% { opacity: 0; background-color: rgba(100, 100, 100, 0); } /* 消える */
+}
+
+#smoke-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  z-index: 100; /* 最前面に */
+  pointer-events: none; /* クリックを透過させる */
+  animation: smoke-fade 0.6s ease-out forwards;
+}
+
 </style>
 </head>
+
+
+
+
 <body>
 
 <div id="titleScreen">
@@ -61,7 +142,7 @@ button.active{background:linear-gradient(45deg,#00ffcc,#ffcc00)}
 
 <div class="start-buttons">
 <button onclick="startGame('X')">先手でSTART</button>
-<button class="dark" onclick="startGame('O')">後手でSTART</button>
+<button class="active" onclick="startGame('O')">後手でSTART</button>
 </div>
 
 <div id="infoBox">
@@ -70,7 +151,7 @@ button.active{background:linear-gradient(45deg,#00ffcc,#ffcc00)}
 <p style="color:#00daff">
 <a href="https://github.com/naoyasnow/ric-pac-soe/" style="color:#00daff">README</a>
 </p>
-developed by @naoyasnow Last Updated 2026/3/28<br>
+developed by @naoyasnow Last Updated 2026/3/28 v1.3<br>
 </div>
 
 </div>
@@ -94,6 +175,10 @@ developed by @naoyasnow Last Updated 2026/3/28<br>
 <div id="overlay"></div>
 </div>
 
+
+<div id="smoke-overlay" style="display:none;"></div>
+
+
 <script>
 let board,current,mode='place',hand='rock',opponent,selected,gameOver=false,bonus=false,bonusOwner=null,lastStarter='X',moveCount=0;
 
@@ -104,6 +189,12 @@ function startGame(st){
  current=st;
  opponent=document.getElementById('opponent').value;
  gameOver=false;bonus=false;bonusOwner=null;
+
+ mode = 'place';
+ hand = 'rock';
+ selected = null;
+ setActive('rock'); // UI上のボタンの光る場所をグーに戻す
+
  document.getElementById('titleScreen').style.display='none';
  document.getElementById('game').style.display='flex';
  document.getElementById('overlay').style.display='none';
@@ -116,19 +207,39 @@ function back(){
  document.getElementById('titleScreen').style.display='flex';
 }
 
+
 function setActive(id){
  ['rock','scissors','paper','attack'].forEach(b=>{
   const el=document.getElementById(b);
-  if(el) el.classList.remove('active');
+  if(el) {
+    el.classList.remove('active');
+    el.classList.remove('attack-active'); // 追加：専用クラスも消す
+  }
  });
+ 
  if(id){
   const el=document.getElementById(id);
-  if(el) el.classList.add('active');
+  if(el) {
+    // 攻撃ボタンなら専用色、それ以外なら通常のアクティブ色
+    if(id === 'attack') {
+      el.classList.add('attack-active');
+    } else {
+      el.classList.add('active');
+    }
+  }
  }
 }
 
+
 function setHand(h){hand=h;mode='place';setActive(h)}
-function setMode(m){mode=m;setActive('attack')}
+
+function setMode(m){
+  // ボーナス中（設置義務がある間）は、攻撃モードへの変更を無視する
+  if(bonus && m === 'attack') return; 
+  
+  mode=m;
+  setActive('attack');
+}
 
 function render(){
  let info=document.getElementById('moveCounter');
@@ -141,19 +252,35 @@ function render(){
  }
  info.textContent=`手数: ${moveCount}`;
 
+
+  // 攻撃ボタンの制御を追加
+  const attackBtn = document.getElementById('attack');
+  if (attackBtn) {
+    // ボーナス中なら disabled にし、終われば解除する
+    attackBtn.disabled = bonus;
+  }
+
  const b=document.getElementById('board');
  if(!b)return;
  b.innerHTML='';
  board.forEach((c,i)=>{
   let d=document.createElement('div');
   d.className='cell';
-  if(c){d.classList.add(c.p);d.textContent=emoji(c.h)}
+  
+  if(c){
+    d.classList.add(c.p);
+    d.textContent=emoji(c.h);
+    // 自分の番で、かつ攻撃モードで選択されているマスを強調
+    if(i === selected) d.classList.add('selected');
+  }
+
   d.onclick=()=>click(i);
   b.appendChild(d);
  });
 }
 
 function emoji(h){return h==='rock'?'🪨':h==='scissors'?'✂️':'📜'}
+
 
 function click(i){
  if(gameOver)return;
@@ -164,22 +291,62 @@ function click(i){
   board[i]={p:current,h:hand};
   if(bonus){bonus=false;bonusOwner=null;next();return;}
   next();
- }else{
-  if(selected==null){if(board[i]?.p===current)selected=i}
-  else{
-   if(adj(selected,i)&&board[i]&&board[i].p!==current){
-    let a=board[selected].h,b=board[i].h;
-    if(a===b){
-      board[selected]=null;board[i]=null;
-      bonus=true;bonusOwner=current;
-      mode='place';selected=null;render();return;
-    }else if(win(a,b)) board[i]={p:current,h:a};
-    else board[selected]=null;
-    selected=null;next();
-   }else selected=null;
+
+  }else{
+
+   if(selected==null){
+     if(board[i]?.p===current) {
+      selected=i;
+      render(); // ← ここで再描画して、枠線を表示させる。これで「.selected」の枠線が表示される
+      return; 
+     }
+
+  }else{
+
+
+  if(adj(selected,i)&&board[i]&&board[i].p!==current){
+    const attackerCell = document.getElementsByClassName('cell')[selected];
+    const targetCell = document.getElementsByClassName('cell')[i];
+
+    // 1. 距離を計算してアニメーション変数にセット
+    const dx = targetCell.offsetLeft - attackerCell.offsetLeft;
+    const dy = targetCell.offsetTop - attackerCell.offsetTop;
+    attackerCell.style.setProperty('--dx', `${dx}px`);
+    attackerCell.style.setProperty('--dy', `${dy}px`);
+
+    // 2. 殴るクラスを追加
+    attackerCell.classList.add('punching');
+
+    // 3. アニメーションを待ってから判定（setTimeout）
+    setTimeout(() => {
+      let a=board[selected].h,b=board[i].h;
+      if(a===b){
+        board[selected]=null;board[i]=null;
+        bonus=true;bonusOwner=current;
+        mode='place';selected=null;render();
+        attackerCell.classList.remove('punching'); // クラス削除を忘れずに
+        return;
+      } else if(win(a,b)) {
+        board[i]={p:current,h:a};
+      } else {
+        board[selected]=null;
+      }
+      
+      attackerCell.classList.remove('punching');
+      selected=null;
+      next();
+    }, 250); // 0.25秒待つ
+
+   } else {
+    // 隣接していない場所や空地、自分を再度選んだ場合の「キャンセル」
+    selected=null;
+    render();
+   }
+
+
   }
+
  }
- render();
 }
 
 function passTurn(){next()}
@@ -245,9 +412,27 @@ function minimax(b,d,isMax){
   Math.min(...acts.map(a=>minimax(simulate(b,a,player),d-1,true)));
 }
 
+
 function evaluate(b){
  let s=0,count={rock:0,scissors:0,paper:0};
  b.forEach(c=>{if(!c)return;if(c.p==='O')s+=15;else s-=15;count[c.h]++});
+
+ // --- ここから追加：ライン読みロジック ---
+ let p=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+ for(let [idx1, idx2, idx3] of p){
+  let cells = [b[idx1], b[idx2], b[idx3]];
+  let mine = cells.filter(c => c && c.p === 'O').length;
+  let theirs = cells.filter(c => c && c.p === 'X').length;
+  let empty = cells.filter(c => !c).length;
+
+  // 「リーチ（あと1マスで勝ち）」の状態を見つけたら
+  if(mine === 2 && empty === 1) s += 50; 
+
+  // 「被リーチ（相手があと1マスで勝ち）」の状態を見つけたら
+  if(theirs === 2 && empty === 1) s -= 80;
+ }
+ // --- ここまで追加 ---
+
  let v=Object.values(count);
  s-=(Math.max(...v)-Math.min(...v));
  s+=countAttacks(b,'O')*3;
@@ -300,13 +485,61 @@ function simulate(b,a,p){
  return nb;
 }
 
+
 function apply(a){
- if(a.type==='place'){
-  let h=getLeastUsedHand(board);
-  board[a.i]={p:'O',h};
- }else{
-  selected=a.from;mode='attack';click(a.to);return;
+  if(a.type==='place'){
+    // 通常の設置時も、AIに少しだけ知恵を授ける（数合わせの手を選ぶ）
+    let h=getLeastUsedHand(board);
+    board[a.i]={p:'O',h};
+    next();
+  }else{
+    selected=a.from;
+    mode='attack';
+    click(a.to); 
+    
+    // アイコ発生時のAIによる自動設置（evaluateによる最適化版）
+    if(bonus && bonusOwner==='O'){
+      let bestScore = -Infinity;
+      let bestTarget = null;
+      let h = getLeastUsedHand(board);
+
+      board.forEach((c, i) => {
+        if(!c) {
+          board[i] = {p:'O', h: h};
+          let score = evaluate(board); 
+          board[i] = null;
+          if(score > bestScore) {
+            bestScore = score;
+            bestTarget = i;
+          }
+        }
+      });
+
+      if(bestTarget !== null){
+        hand = h;
+        mode = 'place';
+        click(bestTarget); 
+      }
+    }
+  }
+}
+
+
+function passTurn(){
+ if(bonus) return; // ボーナス中はパス不可
+ selected=null;
+ 
+ // 1. 煙エフェクトを表示
+ const smoke = document.getElementById('smoke-overlay');
+ if(smoke){
+  smoke.style.display = 'block';
+  // アニメーション後に非表示に戻す
+  setTimeout(() => {
+    smoke.style.display = 'none';
+  }, 600); // アニメーション時間(0.6s)に合わせる
  }
+
+ // 2. ターンを回す
  next();
 }
 
